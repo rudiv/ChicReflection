@@ -14,7 +14,7 @@ namespace Chic.ChangeTracking
 
         protected AssemblyBuilder GetBuilder(string name)
         {
-            return AssemblyBuilder.DefineDynamicAssembly(new System.Reflection.AssemblyName(name), AssemblyBuilderAccess.Run);
+            return AssemblyBuilder.DefineDynamicAssembly(new AssemblyName(name), AssemblyBuilderAccess.Run);
         }
 
         public T GetProxy<T>()
@@ -155,26 +155,30 @@ namespace Chic.ChangeTracking
 
             /* hehe
             IL_0000: ldarg.0
-            IL_0001: ldc.i4.1
-            IL_0002: call instance void Program/Proxied::set_IsDirty(bool)
-            IL_0007: ldarg.0
-            IL_0008: call instance void Program/Proxied::EnsureTrackable()
-            IL_000d: ldarg.0
-            IL_000e: call instance class [mscorlib]System.Collections.Generic.Dictionary`2<string, object> Program/Proxied::get_OriginalValues()
-            IL_0013: ldstr "Field"
-            IL_0018: callvirt instance bool class [mscorlib]System.Collections.Generic.Dictionary`2<string, object>::ContainsKey(!0)
-            IL_001d: brtrue.s IL_003a
-            IL_001f: ldarg.0
-            IL_0020: call instance class [mscorlib]System.Collections.Generic.Dictionary`2<string, object> Program/Proxied::get_OriginalValues()
-            IL_0025: ldstr "Field"
-            IL_002a: ldarg.0
-            IL_002b: ldfld int32 Program/Proxied::_field
-            IL_0030: box [mscorlib]System.Int32
-            IL_0035: callvirt instance void class [mscorlib]System.Collections.Generic.Dictionary`2<string, object>::Add(!0, !1)
-            IL_003a: ldarg.0
-            IL_003b: ldarg.1
-            IL_003c: stfld int32 Program/Proxied::_field
-            IL_0041: ret
+			IL_0001: call instance void Program/Proxied::EnsureTrackable()
+			IL_0006: ldarg.0
+			IL_0007: call instance class [mscorlib]System.Collections.Generic.Dictionary`2<string, object> Program/Proxied::get_OriginalValues()
+			IL_000c: ldstr "Field"
+			IL_0011: callvirt instance bool class [mscorlib]System.Collections.Generic.Dictionary`2<string, object>::ContainsKey(!0)
+			IL_0016: brtrue.s IL_0030
+			IL_0018: ldarg.0
+			IL_0019: call instance class [mscorlib]System.Collections.Generic.Dictionary`2<string, object> Program/Proxied::get_OriginalValues()
+			IL_001e: ldstr "Field"
+			IL_0023: ldarg.1
+			IL_0024: box [mscorlib]System.Int32
+			IL_0029: callvirt instance void class [mscorlib]System.Collections.Generic.Dictionary`2<string, object>::Add(!0, !1)
+			IL_002e: br.s IL_0040
+			IL_0030: ldarg.0
+			IL_0031: ldfld int32 Program/Proxied::_field
+			IL_0036: ldarg.1
+			IL_0037: beq.s IL_0040
+			IL_0039: ldarg.0
+			IL_003a: ldc.i4.1
+			IL_003b: call instance void Program/Proxied::set_IsDirty(bool)
+			IL_0040: ldarg.0
+			IL_0041: ldarg.1
+			IL_0042: stfld int32 Program/Proxied::_field
+			IL_0047: ret
             */
 
             var containsKeyDictMethod = typeof(Dictionary<string, object>).GetMethod("ContainsKey");
@@ -182,34 +186,39 @@ namespace Chic.ChangeTracking
 
             var setterBuilder = typeBuilder.DefineMethod(setterName, attrs, null, tPropArgs);
             var setterIl = setterBuilder.GetILGenerator();
+            var neqLbl = setterIl.DefineLabel();
             var setFieldLbl = setterIl.DefineLabel();
-            setterIl.Emit(OpCodes.Ldarg_0);
-            setterIl.Emit(OpCodes.Ldc_I4_1);
-            setterIl.Emit(OpCodes.Call, dirtySetter);
             setterIl.Emit(OpCodes.Ldarg_0);
             setterIl.Emit(OpCodes.Call, ensureTrackable);
             setterIl.Emit(OpCodes.Ldarg_0);
             setterIl.Emit(OpCodes.Call, ovGetter);
             setterIl.Emit(OpCodes.Ldstr, propName);
             setterIl.Emit(OpCodes.Callvirt, containsKeyDictMethod);
-            setterIl.Emit(OpCodes.Brtrue_S, setFieldLbl);
+            setterIl.Emit(OpCodes.Brtrue_S, neqLbl); // jmp if not first set
             setterIl.Emit(OpCodes.Ldarg_0);
             setterIl.Emit(OpCodes.Call, ovGetter);
             setterIl.Emit(OpCodes.Ldstr, propName);
-            setterIl.Emit(OpCodes.Ldarg_0);
-            setterIl.Emit(OpCodes.Ldfld, field);
+            setterIl.Emit(OpCodes.Ldarg_1);
             // Box if needed
             if (tPropType.IsValueType) {
                 setterIl.Emit(OpCodes.Box, tPropType);
             }
             setterIl.Emit(OpCodes.Callvirt, addDictMethod);
+            setterIl.Emit(OpCodes.Br_S, setFieldLbl); // jmp to skip dirty
+            setterIl.MarkLabel(neqLbl);
+            setterIl.Emit(OpCodes.Ldarg_0);
+            setterIl.Emit(OpCodes.Ldfld, field);
+            setterIl.Emit(OpCodes.Ldarg_1);
+            setterIl.Emit(OpCodes.Beq_S, setFieldLbl); // jmp if values are equal
+            setterIl.Emit(OpCodes.Ldarg_0);
+            setterIl.Emit(OpCodes.Ldc_I4_1);
+            setterIl.Emit(OpCodes.Call, dirtySetter);
             setterIl.MarkLabel(setFieldLbl);
             setterIl.Emit(OpCodes.Ldarg_0);
             setterIl.Emit(OpCodes.Ldarg_1);
             setterIl.Emit(OpCodes.Stfld, field);
             setterIl.Emit(OpCodes.Ret);
-
-
+            
             if (typeof(T).IsInterface)
             {
                 var prop = typeBuilder.DefineProperty(propName, PropertyAttributes.None, tPropType, tPropArgs);

@@ -27,10 +27,20 @@ namespace Chic.ChangeTracking
         }
 
         [TestMethod]
-        public void TestIsDirty()
+        public void TestIsDirtyAfterFirstSet()
         {
             var proxyType = proxyGenerator.GetProxy<TestType>();
             proxyType.TestProperty = "Hello";
+
+            Assert.IsFalse(((IProxyChanges)proxyType).IsModified);
+        }
+
+        [TestMethod]
+        public void TestIsDirtyAfterSecondSet()
+        {
+            var proxyType = proxyGenerator.GetProxy<TestType>();
+            proxyType.TestProperty = "Hello";
+            proxyType.TestProperty = "Test";
 
             Assert.IsTrue(((IProxyChanges)proxyType).IsModified);
         }
@@ -50,7 +60,7 @@ namespace Chic.ChangeTracking
             var proxyType = proxyGenerator.GetProxy<TestType>();
             proxyType.TestProperty = "Hello";
 
-            Assert.AreEqual(null, ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.TestProperty)]);
+            Assert.AreEqual("Hello", ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.TestProperty)]);
         }
 
         [TestMethod]
@@ -71,7 +81,7 @@ namespace Chic.ChangeTracking
             proxyType.TestProperty = "Another Change";
             proxyType.TestProperty = "And One More";
 
-            Assert.AreEqual(null, ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.TestProperty)]);
+            Assert.AreEqual("Hello", ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.TestProperty)]);
         }
 
         [TestMethod]
@@ -79,18 +89,17 @@ namespace Chic.ChangeTracking
         {
             var proxyType = proxyGenerator.GetProxy<TestType>();
             proxyType.BoxProperty = 1;
+            proxyType.BoxProperty = 2;
 
             Assert.IsTrue(((IProxyChanges)proxyType).IsModified);
             Assert.IsTrue(((IProxyChanges)proxyType).OriginalValues.ContainsKey(nameof(TestType.BoxProperty)));
-            Assert.AreEqual(0, ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.BoxProperty)]);
+            Assert.AreEqual(1, ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.BoxProperty)]);
         }
 
         [TestMethod]
         public void TestProxyGenerationFromInterface()
         {
             var proxyType = proxyGenerator.GetProxy<ITestType>();
-            proxyType.TestProperty = "Test";
-
             Assert.IsTrue(proxyType is IProxyChanges);
             Assert.IsTrue(proxyType is ITestType);
         }
@@ -100,10 +109,11 @@ namespace Chic.ChangeTracking
         {
             var proxyType = proxyGenerator.GetProxy<ITestType>();
             proxyType.TestProperty = "Test";
+            proxyType.TestProperty = "Test2";
 
             Assert.IsTrue(((IProxyChanges)proxyType).IsModified);
             Assert.IsTrue(((IProxyChanges)proxyType).OriginalValues.ContainsKey(nameof(TestType.TestProperty)));
-            Assert.AreEqual(null, ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.TestProperty)]);
+            Assert.AreEqual("Test", ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.TestProperty)]);
         }
 
         public interface ITestType
