@@ -6,6 +6,6 @@ namespace Chic
     public class ConnectedContext
     {
 
-        public IChangeTracker changeTracker;
+        //public IProxyDirty changeTracker;
     }
 }
