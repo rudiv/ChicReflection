@@ -116,6 +116,48 @@ namespace Chic.ChangeTracking
             Assert.AreEqual("Test", ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.TestProperty)]);
         }
 
+        [TestMethod]
+        public void TestMapFromLiveObject()
+        {
+            var defaultObject = new TestType
+            {
+                TestProperty = "Test",
+                BoxProperty = 5
+            };
+            var proxyType = proxyGenerator.ProxyLiveObject(defaultObject);
+            Assert.IsTrue(proxyType is TestType);
+            Assert.IsFalse(((IProxyChanges)proxyType).IsModified);
+        }
+
+        [TestMethod]
+        public void TestMapFromLiveObjectWithPropertyValues()
+        {
+            var defaultObject = new TestType
+            {
+                TestProperty = "Test",
+                BoxProperty = 5
+            };
+            var proxyType = proxyGenerator.ProxyLiveObject(defaultObject);
+            Assert.AreEqual(defaultObject.TestProperty, proxyType.TestProperty);
+            Assert.AreEqual(defaultObject.BoxProperty, proxyType.BoxProperty);
+        }
+
+        [TestMethod]
+        public void TestMapFromLiveObjectChangeTracking()
+        {
+            var defaultObject = new TestType
+            {
+                TestProperty = "Test",
+                BoxProperty = 5
+            };
+            var proxyType = proxyGenerator.ProxyLiveObject(defaultObject);
+
+            proxyType.TestProperty = "New Value";
+            Assert.IsTrue(((IProxyChanges)proxyType).IsModified);
+            Assert.AreEqual(defaultObject.TestProperty, ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.TestProperty)]);
+            Assert.AreEqual("New Value", proxyType.TestProperty);
+        }
+
         public interface ITestType
         {
             string TestProperty { get; set; }

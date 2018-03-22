@@ -17,6 +17,16 @@ namespace Chic.ChangeTracking
             return AssemblyBuilder.DefineDynamicAssembly(new AssemblyName(name), AssemblyBuilderAccess.Run);
         }
 
+        public T ProxyLiveObject<T>(T obj)
+        {
+            var proxy = GetProxy<T>();
+            foreach(var property in typeof(T).GetProperties())
+            {
+                property.SetValue(proxy, property.GetValue(obj));
+            }
+            return proxy;
+        }
+
         public T GetProxy<T>()
         {
             var tType = typeof(T);
