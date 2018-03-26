@@ -22,7 +22,8 @@ namespace Chic.ChangeTracking
             var proxy = GetProxy<T>();
             foreach(var property in typeof(T).GetProperties())
             {
-                property.SetValue(proxy, property.GetValue(obj));
+                var propValue = property.GetValue(obj);
+                property.SetValue(proxy, propValue);
             }
             return proxy;
         }
@@ -82,7 +83,7 @@ namespace Chic.ChangeTracking
                 }
 
                 proxyType = typeBuilder.CreateTypeInfo().AsType();
-
+                
                 ProxyCache.TryAdd(tType, proxyType);
             }
 
@@ -180,8 +181,32 @@ namespace Chic.ChangeTracking
 			IL_002e: br.s IL_0040
 			IL_0030: ldarg.0
 			IL_0031: ldfld int32 Program/Proxied::_field
+--------- NULLABLE<T>
+            IL_0036: stloc.0
+			IL_0037: ldarg.1
+			IL_0038: stloc.1
+			IL_0039: ldloca.s V_0
+			IL_003b: call instance bool valuetype [mscorlib]System.Nullable`1<valuetype [mscorlib]System.DateTime>::get_HasValue()
+			IL_0040: ldloca.s V_1
+			IL_0042: call instance bool valuetype [mscorlib]System.Nullable`1<valuetype [mscorlib]System.DateTime>::get_HasValue()
+			IL_0047: beq.s IL_004c
+			IL_0049: ldc.i4.1
+			IL_004a: br.s IL_006b
+			IL_004c: ldloca.s V_0
+			IL_004e: call instance bool valuetype [mscorlib]System.Nullable`1<valuetype [mscorlib]System.DateTime>::get_HasValue()
+			IL_0053: brtrue.s IL_0058
+			IL_0055: ldc.i4.0
+			IL_0056: br.s IL_006b
+			IL_0058: ldloca.s V_0
+			IL_005a: call instance !0 valuetype [mscorlib]System.Nullable`1<valuetype [mscorlib]System.DateTime>::GetValueOrDefault()
+			IL_005f: ldloca.s V_1
+			IL_0061: call instance !0 valuetype [mscorlib]System.Nullable`1<valuetype [mscorlib]System.DateTime>::GetValueOrDefault()
+			IL_0066: call bool [mscorlib]System.DateTime::op_Inequality(valuetype [mscorlib]System.DateTime, valuetype [mscorlib]System.DateTime)
+			IL_006b: brfalse.s IL_0074
+------------
 			IL_0036: ldarg.1
 			IL_0037: beq.s IL_0040
+------------
 			IL_0039: ldarg.0
 			IL_003a: ldc.i4.1
 			IL_003b: call instance void Program/Proxied::set_IsDirty(bool)
@@ -194,32 +219,105 @@ namespace Chic.ChangeTracking
             var containsKeyDictMethod = typeof(Dictionary<string, object>).GetMethod("ContainsKey");
             var addDictMethod = typeof(Dictionary<string, object>).GetMethod("Add");
 
+            var underlyingType = Nullable.GetUnderlyingType(tPropType);
             var setterBuilder = typeBuilder.DefineMethod(setterName, attrs, null, tPropArgs);
             var setterIl = setterBuilder.GetILGenerator();
             var neqLbl = setterIl.DefineLabel();
             var setFieldLbl = setterIl.DefineLabel();
-            setterIl.Emit(OpCodes.Ldarg_0);
-            setterIl.Emit(OpCodes.Call, ensureTrackable);
-            setterIl.Emit(OpCodes.Ldarg_0);
-            setterIl.Emit(OpCodes.Call, ovGetter);
-            setterIl.Emit(OpCodes.Ldstr, propName);
-            setterIl.Emit(OpCodes.Callvirt, containsKeyDictMethod);
-            setterIl.Emit(OpCodes.Brtrue_S, neqLbl); // jmp if not first set
-            setterIl.Emit(OpCodes.Ldarg_0);
-            setterIl.Emit(OpCodes.Call, ovGetter);
-            setterIl.Emit(OpCodes.Ldstr, propName);
-            setterIl.Emit(OpCodes.Ldarg_1);
-            // Box if needed
-            if (tPropType.IsValueType) {
-                setterIl.Emit(OpCodes.Box, tPropType);
+
+            LocalBuilder localV0 = null, localV1 = null;
+            if (underlyingType != null)
+            {
+                localV0 = setterIl.DeclareLocal(tPropType);
+                localV1 = setterIl.DeclareLocal(tPropType);
             }
-            setterIl.Emit(OpCodes.Callvirt, addDictMethod);
-            setterIl.Emit(OpCodes.Br_S, setFieldLbl); // jmp to skip dirty
+
+            setterIl.Emit(OpCodes.Ldarg_0); // IL_0000: ldarg.0
+            setterIl.Emit(OpCodes.Call, ensureTrackable); // IL_0001: call instance void Program/Proxied::EnsureTrackable()
+            setterIl.Emit(OpCodes.Ldarg_0); // IL_0006: ldarg.0
+            setterIl.Emit(OpCodes.Call, ovGetter); // IL_0007: call instance class [mscorlib]System.Collections.Generic.Dictionary`2<string, object> get_OriginalValues()
+            setterIl.Emit(OpCodes.Ldstr, propName); // IL_000c: ldstr "Field"
+            setterIl.Emit(OpCodes.Callvirt, containsKeyDictMethod); // IL_0011: callvirt instance bool class [mscorlib]System.Collections.Generic.Dictionary`2<string, object>::ContainsKey(!0)
+            setterIl.Emit(OpCodes.Brtrue_S, neqLbl); // jmp if not first set // IL_0016: brtrue.s IL_0030
+            setterIl.Emit(OpCodes.Ldarg_0); // IL_0018: ldarg.0
+            setterIl.Emit(OpCodes.Call, ovGetter); // IL_0019: call instance class [mscorlib]System.Collections.Generic.Dictionary`2<string, object> Program/Proxied::get_OriginalValues()
+            setterIl.Emit(OpCodes.Ldstr, propName); // IL_001e: ldstr "Field"
+            setterIl.Emit(OpCodes.Ldarg_1); // IL_0023: ldarg.1
+            // Box if needed
+            if (tPropType.IsValueType || (underlyingType?.IsValueType ?? false)) {
+                setterIl.Emit(OpCodes.Box, tPropType); // IL_0024: box valuetype [mscorlib]System.Nullable`1<valuetype [mscorlib]System.DateTime>
+            }
+            setterIl.Emit(OpCodes.Callvirt, addDictMethod); // IL_0029: callvirt instance void class [mscorlib]System.Collections.Generic.Dictionary`2<string, object>::Add(!0, !1)
+            setterIl.Emit(OpCodes.Br_S, setFieldLbl); // jmp to skip dirty // IL_002e: br.s IL_0074
             setterIl.MarkLabel(neqLbl);
-            setterIl.Emit(OpCodes.Ldarg_0);
-            setterIl.Emit(OpCodes.Ldfld, field);
-            setterIl.Emit(OpCodes.Ldarg_1);
-            setterIl.Emit(OpCodes.Beq_S, setFieldLbl); // jmp if values are equal
+            setterIl.Emit(OpCodes.Ldarg_0); // IL_0030: ldarg.0
+            setterIl.Emit(OpCodes.Ldfld, field); // IL_0031: ldfld valuetype [mscorlib]System.Nullable`1<valuetype [mscorlib]System.DateTime> Program/Proxied::_field
+            if (underlyingType != null)
+            {
+                var nullableGetHasValue = tPropType.GetMethod("get_HasValue");
+                var nullableGetValueOrDefault = tPropType.GetMethod(
+                    "GetValueOrDefault",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly,
+                    null,
+                    Type.EmptyTypes,
+                    null);
+                var nullableOpNeq = underlyingType.GetMethod("op_Inequality");
+                var preJmpLbl = setterIl.DefineLabel();
+
+                // Value checker
+                var lbl1 = setterIl.DefineLabel();
+                var lbl2 = setterIl.DefineLabel();
+                setterIl.Emit(OpCodes.Stloc_0); // IL_0036: stloc.0
+                setterIl.Emit(OpCodes.Ldarg_1); // IL_0037: ldarg.1
+                setterIl.Emit(OpCodes.Stloc_1); // IL_0038: stloc.1
+                setterIl.Emit(OpCodes.Ldloca_S, localV0); // IL_0039: ldloca.s V_0
+                if (underlyingType.IsPrimitive || nullableOpNeq == null)
+                {
+                    setterIl.Emit(OpCodes.Call, nullableGetValueOrDefault);
+                    setterIl.Emit(OpCodes.Ldloca_S, localV1);
+                    setterIl.Emit(OpCodes.Call, nullableGetValueOrDefault);
+                    setterIl.Emit(OpCodes.Beq_S, lbl1);
+                    setterIl.Emit(OpCodes.Ldc_I4_1);
+                    setterIl.Emit(OpCodes.Br_S, preJmpLbl);
+                    setterIl.MarkLabel(lbl1);
+                    setterIl.Emit(OpCodes.Ldloca_S, localV0);
+                    setterIl.Emit(OpCodes.Call, nullableGetHasValue);
+                    setterIl.Emit(OpCodes.Ldloca_S, localV1);
+                    setterIl.Emit(OpCodes.Call, nullableGetHasValue);
+                    setterIl.Emit(OpCodes.Ceq);
+                    setterIl.Emit(OpCodes.Ldc_I4_0);
+                    setterIl.Emit(OpCodes.Ceq);
+                }
+                else
+                {
+                    setterIl.Emit(OpCodes.Call, nullableGetHasValue); // IL_003b: call instance bool valuetype [mscorlib]System.Nullable`1<valuetype [mscorlib]System.DateTime>::get_HasValue()
+                    setterIl.Emit(OpCodes.Ldloca_S, localV0); // IL_0040: ldloca.s V_1
+                    setterIl.Emit(OpCodes.Call, nullableGetHasValue); // IL_0042: call instance bool valuetype [mscorlib]System.Nullable`1<valuetype [mscorlib]System.DateTime>::get_HasValue()
+                    setterIl.Emit(OpCodes.Beq_S, lbl1); // IL_0047: beq.s IL_004c
+                    setterIl.Emit(OpCodes.Ldc_I4_1); // IL_0049: ldc.i4.1
+                    setterIl.Emit(OpCodes.Br_S, preJmpLbl); // IL_004a: br.s IL_006b
+                    setterIl.MarkLabel(lbl1);
+                    setterIl.Emit(OpCodes.Ldloca_S, localV0); // IL_004c: ldloca.s V_0
+                    setterIl.Emit(OpCodes.Call, nullableGetHasValue); // IL_004e: call instance bool valuetype [mscorlib]System.Nullable`1<valuetype [mscorlib]System.DateTime>::get_HasValue()
+                    setterIl.Emit(OpCodes.Brtrue_S, lbl2); // IL_0053: brtrue.s IL_0058
+                    setterIl.Emit(OpCodes.Ldc_I4_0); // IL_0055: ldc.i4.0
+                    setterIl.Emit(OpCodes.Br_S, preJmpLbl); // IL_0056: br.s IL_006b
+                    setterIl.MarkLabel(lbl2);
+                    setterIl.Emit(OpCodes.Ldloca_S, localV0); // L_0058: ldloca.s V_0
+                    setterIl.Emit(OpCodes.Call, nullableGetValueOrDefault); // IL_005a: call instance !0 valuetype [mscorlib]System.Nullable`1<valuetype [mscorlib]System.DateTime>::GetValueOrDefault()
+                    setterIl.Emit(OpCodes.Ldloca_S, localV1); // IL_005f: ldloca.s V_1
+                    setterIl.Emit(OpCodes.Call, nullableGetValueOrDefault); // IL_0061: call instance !0 valuetype [mscorlib]System.Nullable`1<valuetype [mscorlib]System.DateTime>::GetValueOrDefault()
+                    setterIl.Emit(OpCodes.Call, nullableOpNeq); // IL_0066: call bool [mscorlib]System.DateTime::op_Inequality(valuetype [mscorlib]System.DateTime, valuetype [mscorlib]System.DateTime)
+                }
+                setterIl.MarkLabel(preJmpLbl);
+                setterIl.Emit(OpCodes.Brfalse_S, setFieldLbl); // jmp to skip dirty // IL_006b: brfalse.s IL_0074
+            }
+            else
+            {
+                // Basic Equality
+                setterIl.Emit(OpCodes.Ldarg_1);
+                setterIl.Emit(OpCodes.Beq_S, setFieldLbl); // jmp if values are equal
+            }
             setterIl.Emit(OpCodes.Ldarg_0);
             setterIl.Emit(OpCodes.Ldc_I4_1);
             setterIl.Emit(OpCodes.Call, dirtySetter);

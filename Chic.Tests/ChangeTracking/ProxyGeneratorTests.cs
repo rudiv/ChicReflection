@@ -1,4 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System;
 
 namespace Chic.ChangeTracking
 {
@@ -43,6 +44,83 @@ namespace Chic.ChangeTracking
             proxyType.TestProperty = "Test";
 
             Assert.IsTrue(((IProxyChanges)proxyType).IsModified);
+        }
+
+        [TestMethod]
+        public void TestNullableNeqIsDirty()
+        {
+            var proxyType = proxyGenerator.GetProxy<NullableDtTestType>();
+            proxyType.TestProperty = DateTime.MinValue;
+            proxyType.TestProperty = DateTime.MaxValue;
+
+            Assert.IsTrue(((IProxyChanges)proxyType).IsModified);
+            Assert.AreEqual(DateTime.MinValue, ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.TestProperty)]);
+        }
+
+        [TestMethod]
+        public void TestNullableEqIsDirty()
+        {
+            var proxyType = proxyGenerator.GetProxy<NullableDecTestType>();
+            proxyType.TestProperty = 0m;
+            proxyType.TestProperty = 1m;
+
+            Assert.IsTrue(((IProxyChanges)proxyType).IsModified);
+            Assert.AreEqual(0m, ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.TestProperty)]);
+        }
+
+        [TestMethod]
+        public void TestNullablePrimitiveIsDirty()
+        {
+            var proxyType = proxyGenerator.GetProxy<NullablePrimTestType>();
+            proxyType.TestProperty = 0;
+            proxyType.TestProperty = 1;
+
+            Assert.IsTrue(((IProxyChanges)proxyType).IsModified);
+            Assert.AreEqual(0, ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.TestProperty)]);
+        }
+
+        [TestMethod]
+        public void TestNullableGenericIntIsDirty()
+        {
+            var proxyType = proxyGenerator.GetProxy<NullableGenericTestType<int>>();
+            proxyType.TestProperty = 0;
+            proxyType.TestProperty = 1;
+
+            Assert.IsTrue(((IProxyChanges)proxyType).IsModified);
+            Assert.AreEqual(0, ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.TestProperty)]);
+        }
+
+        [TestMethod]
+        public void TestNullableGenericByteIsDirty()
+        {
+            var proxyType = proxyGenerator.GetProxy<NullableGenericTestType<byte>>();
+            proxyType.TestProperty = 0;
+            proxyType.TestProperty = 1;
+
+            Assert.IsTrue(((IProxyChanges)proxyType).IsModified);
+            Assert.AreEqual((byte)0, ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.TestProperty)]);
+        }
+        
+        [TestMethod]
+        public void TestNullableGenericDoubleIsDirty()
+        {
+            var proxyType = proxyGenerator.GetProxy<NullableGenericTestType<double>>();
+            proxyType.TestProperty = 0d;
+            proxyType.TestProperty = 1d;
+
+            Assert.IsTrue(((IProxyChanges)proxyType).IsModified);
+            Assert.AreEqual(0d, ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.TestProperty)]);
+        }
+        
+        [TestMethod]
+        public void TestNullableGenericDecimalIsDirty()
+        {
+            var proxyType = proxyGenerator.GetProxy<NullableGenericTestType<decimal>>();
+            proxyType.TestProperty = 0;
+            proxyType.TestProperty = 1;
+
+            Assert.IsTrue(((IProxyChanges)proxyType).IsModified);
+            Assert.AreEqual(0m, ((IProxyChanges)proxyType).OriginalValues[nameof(TestType.TestProperty)]);
         }
 
         [TestMethod]
@@ -182,6 +260,24 @@ namespace Chic.ChangeTracking
         {
             public virtual string TestProperty { get; set; }
             public int BoxProperty { get; set; }
+        }
+
+        public class NullableDtTestType
+        {
+            public virtual DateTime? TestProperty { get; set; }
+        }
+        public class NullableDecTestType
+        {
+            public virtual decimal? TestProperty { get; set; }
+        }
+        public class NullablePrimTestType
+        {
+            public virtual int? TestProperty { get; set; }
+        }
+        public class NullableGenericTestType<T>
+            where T : struct
+        {
+            public virtual T? TestProperty { get; set; }
         }
     }
 }
