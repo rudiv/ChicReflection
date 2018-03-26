@@ -105,6 +105,13 @@ namespace Chic.ChangeTracking
         }
 
         [TestMethod]
+        public void TestProxyGenerationWithFinalImplementation()
+        {
+            var proxyType = proxyGenerator.GetProxy<FinalTestType>();
+            Assert.IsTrue(proxyType is IProxyChanges);
+        }
+
+        [TestMethod]
         public void TestPropertyTrackingFromInterfaceProxy()
         {
             var proxyType = proxyGenerator.GetProxy<ITestType>();
@@ -169,6 +176,12 @@ namespace Chic.ChangeTracking
             public virtual string TestProperty { get; set; }
             public string UntrackableProperty { get; set; }
             public virtual int BoxProperty { get; set; }
+        }
+
+        public class FinalTestType : ITestType
+        {
+            public virtual string TestProperty { get; set; }
+            public int BoxProperty { get; set; }
         }
     }
 }

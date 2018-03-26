@@ -2,6 +2,12 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Version>0.1-pre</Version>
+    <Company>Cedita Ltd</Company>
+    <Description />
+    <Copyright>Cedita Ltd</Copyright>
   </PropertyGroup>
 
   <ItemGroup>

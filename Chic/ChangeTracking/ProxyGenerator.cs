@@ -74,7 +74,7 @@ namespace Chic.ChangeTracking
                 var properties = tType.GetProperties();
                 if (!tType.IsInterface)
                 {
-                    properties = properties.Where(p => p.GetSetMethod().IsVirtual).ToArray();
+                    properties = properties.Where(p => p.GetSetMethod().IsVirtual && !p.GetSetMethod().IsFinal).ToArray();
                 }
                 foreach (var prop in properties)
                 {
